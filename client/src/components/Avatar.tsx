@@ -42,7 +42,6 @@ const getTitle = (level: number): string => {
 };
 
 export default function Avatar({ level, points, streak, totalSaved, avatar, onAvatarClick }: AvatarProps) {
-  const [showLevelUp, setShowLevelUp] = useState(false);
   const [pointsToNextLevel, setPointsToNextLevel] = useState(0);
   const [progressPercent, setProgressPercent] = useState(0);
 

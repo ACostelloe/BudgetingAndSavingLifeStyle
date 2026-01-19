@@ -27,6 +27,16 @@ export default function Achievements() {
 
   useEffect(() => {
     fetchAchievements();
+    
+    // Listen for transaction updates
+    const handleTransactionChange = () => {
+      fetchAchievements();
+    };
+    window.addEventListener('transaction-updated', handleTransactionChange);
+    
+    return () => {
+      window.removeEventListener('transaction-updated', handleTransactionChange);
+    };
   }, []);
 
   const fetchAchievements = async () => {

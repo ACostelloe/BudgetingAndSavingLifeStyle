@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Target, TrendingUp, Calendar, Edit2, Trash2, CheckCircle } from 'lucide-react';
+import { Plus, Target, Calendar, Edit2, Trash2, CheckCircle } from 'lucide-react';
 import api from '../api/client';
 import { format } from 'date-fns';
 
@@ -26,6 +26,16 @@ export default function SavingsGoals() {
   useEffect(() => {
     fetchGoals();
     fetchCategories();
+    
+    // Listen for transaction updates
+    const handleTransactionChange = () => {
+      fetchGoals();
+    };
+    window.addEventListener('transaction-updated', handleTransactionChange);
+    
+    return () => {
+      window.removeEventListener('transaction-updated', handleTransactionChange);
+    };
   }, []);
 
   const fetchGoals = async () => {

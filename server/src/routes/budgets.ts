@@ -4,11 +4,39 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-// Get all budgets
+// Get all budgets with compliance (based on actual transactions)
 router.get('/', (req, res) => {
   try {
-    const budgets = db.prepare('SELECT * FROM budgets ORDER BY created_at DESC').all();
-    res.json(budgets);
+    const budgets = db.prepare('SELECT * FROM budgets ORDER BY created_at DESC').all() as Array<any>;
+    
+    // Calculate compliance for each budget based on actual transactions
+    const budgetsWithCompliance = budgets.map(budget => {
+      const startDate = budget.start_date;
+      const endDate = budget.end_date || new Date().toISOString().split('T')[0];
+      
+      const expenses = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as spent
+        FROM transactions
+        WHERE category = ? AND type = 'expense' AND date >= ? AND date <= ?
+      `).get(budget.category, startDate, endDate) as { spent: number };
+      
+      const spent = expenses.spent || 0;
+      const remaining = budget.amount - spent;
+      const percentage = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
+      
+      return {
+        ...budget,
+        compliance: {
+          budget: budget.amount,
+          spent,
+          remaining,
+          percentage: Math.min(100, percentage),
+          isOverBudget: spent > budget.amount
+        }
+      };
+    });
+    
+    res.json(budgetsWithCompliance);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

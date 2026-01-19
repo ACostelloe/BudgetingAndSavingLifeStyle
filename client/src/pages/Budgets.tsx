@@ -42,6 +42,17 @@ export default function Budgets() {
     fetchBudgets();
     fetchOverallBudget();
     fetchCategories();
+    
+    // Listen for transaction updates
+    const handleTransactionChange = () => {
+      fetchBudgets();
+      fetchOverallBudget();
+    };
+    window.addEventListener('transaction-updated', handleTransactionChange);
+    
+    return () => {
+      window.removeEventListener('transaction-updated', handleTransactionChange);
+    };
   }, []);
 
   const fetchOverallBudget = async () => {

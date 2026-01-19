@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Upload, Edit2, Trash2, Download, Trash } from 'lucide-react';
+import { Plus, Upload, Edit2, Trash2, Trash } from 'lucide-react';
 import api from '../api/client';
 import { format } from 'date-fns';
 
@@ -53,6 +53,8 @@ export default function Transactions() {
       await api.delete(`/transactions/${id}`);
       fetchTransactions();
       setSelectedIds(new Set());
+      // Notify dashboard to refresh
+      window.dispatchEvent(new Event('transaction-updated'));
     } catch (error) {
       console.error('Failed to delete transaction:', error);
       alert('Failed to delete transaction');
@@ -73,6 +75,8 @@ export default function Transactions() {
       });
       setSelectedIds(new Set());
       fetchTransactions();
+      // Notify dashboard to refresh
+      window.dispatchEvent(new Event('transaction-updated'));
       alert(`Successfully deleted ${selectedIds.size} transaction(s)`);
     } catch (error: any) {
       console.error('Failed to delete transactions:', error);
@@ -95,6 +99,8 @@ export default function Transactions() {
       });
       setSelectedIds(new Set());
       fetchTransactions();
+      // Notify dashboard to refresh
+      window.dispatchEvent(new Event('transaction-updated'));
       alert(`Successfully deleted ${pdfImports.length} PDF imported transaction(s)`);
     } catch (error: any) {
       console.error('Failed to delete PDF imports:', error);
@@ -214,6 +220,8 @@ export default function Transactions() {
       alert(message);
       setShowUploadModal(false);
       fetchTransactions();
+      // Notify dashboard to refresh
+      window.dispatchEvent(new Event('transaction-updated'));
     } catch (error: any) {
       alert(error.response?.data?.error || 'Failed to upload PDF');
     }
@@ -239,6 +247,8 @@ export default function Transactions() {
       setShowAddModal(false);
       setEditingTransaction(null);
       fetchTransactions();
+      // Notify dashboard to refresh
+      window.dispatchEvent(new Event('transaction-updated'));
     } catch (error: any) {
       alert(error.response?.data?.error || 'Failed to save transaction');
     }

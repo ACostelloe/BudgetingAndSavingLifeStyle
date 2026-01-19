@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Target, Trophy, Flame, AlertTriangle, PiggyBank, Link as LinkIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Target, Trophy, Flame, AlertTriangle, PiggyBank } from 'lucide-react';
 import api from '../api/client';
 import { format } from 'date-fns';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 import Avatar from '../components/Avatar';
 import LevelUpNotification from '../components/LevelUpNotification';
 import AvatarSelector from '../components/AvatarSelector';
@@ -25,6 +25,27 @@ interface Progress {
   avatar: string;
 }
 
+interface SavingsGoal {
+  id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  category: string | null;
+  description: string | null;
+  is_completed: number;
+  progress: number;
+  daysRemaining: number | null;
+}
+
+interface OverspendingAlert {
+  id: string;
+  category: string;
+  overspent_amount: number;
+  percentage_over: number;
+  alert_date: string;
+}
+
 const COLORS = ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444'];
 
 export default function Dashboard() {
@@ -39,9 +60,26 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    // Refresh data every 30 seconds to catch level ups
+    // Refresh data every 30 seconds to catch level ups and transaction changes
     const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    
+    // Listen for storage events (when transactions are added/removed in other tabs)
+    const handleStorageChange = () => {
+      fetchData();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for custom events from Transactions page
+    const handleTransactionChange = () => {
+      fetchData();
+    };
+    window.addEventListener('transaction-updated', handleTransactionChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('transaction-updated', handleTransactionChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -55,8 +93,13 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
+      // Get current month dates for stats
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+      
       const [statsRes, progressRes, goalsRes, alertsRes] = await Promise.all([
-        api.get('/gamification/stats'),
+        api.get(`/gamification/stats?startDate=${startOfMonth}&endDate=${endOfMonth}`),
         api.get('/gamification/progress'),
         api.get('/savings-goals').catch(() => ({ data: [] })),
         api.get('/analysis/overspending').catch(() => ({ data: [] })),
@@ -76,8 +119,14 @@ export default function Dashboard() {
     return <div className="text-center py-12">Loading...</div>;
   }
 
+  // Get current month name for display
+  const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+
   return (
     <div className="px-4 sm:px-0">
+      <div className="mb-4 text-sm text-gray-500">
+        Showing data for: <span className="font-semibold text-gray-700">{currentMonth}</span>
+      </div>
       {showLevelUp && progress && (
         <LevelUpNotification 
           level={progress.level} 
@@ -334,7 +383,7 @@ export default function Dashboard() {
                   fill="#8884d8"
                   dataKey="total"
                 >
-                  {stats.expensesByCategory.map((entry, index) => (
+                  {stats.expensesByCategory.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

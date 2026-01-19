@@ -166,6 +166,8 @@ router.delete('/bulk', (req, res) => {
   try {
     const { ids, source } = req.body;
     
+    let result: { changes: number };
+    
     if (ids && Array.isArray(ids)) {
       // Delete by IDs
       if (ids.length === 0) {
@@ -173,23 +175,44 @@ router.delete('/bulk', (req, res) => {
       }
       
       const placeholders = ids.map(() => '?').join(',');
-      const result = db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`).run(...ids);
-      
-      res.json({ 
-        message: `Deleted ${result.changes} transaction(s)`,
-        deletedCount: result.changes 
-      });
+      result = db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`).run(...ids);
     } else if (source) {
       // Delete by source (e.g., all PDF imports)
-      const result = db.prepare('DELETE FROM transactions WHERE source = ?').run(source);
-      
-      res.json({ 
-        message: `Deleted ${result.changes} transaction(s) from source: ${source}`,
-        deletedCount: result.changes 
-      });
+      result = db.prepare('DELETE FROM transactions WHERE source = ?').run(source);
     } else {
       return res.status(400).json({ error: 'Must provide either ids array or source' });
     }
+    
+    // Recalculate everything based on remaining transactions
+    // Update savings goals progress
+    const goals = db.prepare('SELECT id FROM savings_goals').all() as Array<{ id: string }>;
+    for (const goal of goals) {
+      updateSavingsGoalProgress(goal.id);
+    }
+    
+    // Recalculate overspending alerts based on actual transactions
+    const budgets = db.prepare('SELECT * FROM budgets').all() as Array<any>;
+    for (const budget of budgets) {
+      const expenses = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as spent
+        FROM transactions
+        WHERE category = ? AND type = 'expense' AND date >= ? AND (? IS NULL OR date <= ?)
+      `).get(budget.category, budget.start_date, budget.end_date, budget.end_date) as { spent: number };
+      
+      // Remove alerts if no longer overspending
+      if (expenses.spent <= budget.amount) {
+        db.prepare('UPDATE overspending_alerts SET is_resolved = 1 WHERE budget_id = ? AND is_resolved = 0').run(budget.id);
+      }
+    }
+    
+    // Recalculate gamification
+    getUserProgress();
+    checkAchievements();
+    
+    res.json({ 
+      message: `Deleted ${result.changes} transaction(s)`,
+      deletedCount: result.changes 
+    });
   } catch (error: any) {
     console.error('Error bulk deleting transactions:', error);
     res.status(500).json({ error: error.message || 'Failed to delete transactions' });
@@ -241,6 +264,33 @@ router.delete('/:id', (req, res) => {
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Transaction not found' });
     }
+    
+    // Recalculate everything based on remaining transactions
+    // Update savings goals progress
+    const goals = db.prepare('SELECT id FROM savings_goals').all() as Array<{ id: string }>;
+    for (const goal of goals) {
+      updateSavingsGoalProgress(goal.id);
+    }
+    
+    // Recalculate overspending alerts based on actual transactions
+    const budgets = db.prepare('SELECT * FROM budgets').all() as Array<any>;
+    for (const budget of budgets) {
+      const expenses = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as spent
+        FROM transactions
+        WHERE category = ? AND type = 'expense' AND date >= ? AND (? IS NULL OR date <= ?)
+      `).get(budget.category, budget.start_date, budget.end_date, budget.end_date) as { spent: number };
+      
+      // Remove alerts if no longer overspending
+      if (expenses.spent <= budget.amount) {
+        db.prepare('UPDATE overspending_alerts SET is_resolved = 1 WHERE budget_id = ? AND is_resolved = 0').run(budget.id);
+      }
+    }
+    
+    // Recalculate gamification
+    getUserProgress();
+    checkAchievements();
+    
     res.json({ message: 'Transaction deleted' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

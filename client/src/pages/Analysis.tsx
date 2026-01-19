@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, DollarSign } from 'lucide-react';
 import api from '../api/client';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface CategoryInsight {
   category: string;
@@ -29,8 +29,6 @@ interface OverspendingAlert {
   alert_date: string;
 }
 
-const COLORS = ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444'];
-
 export default function Analysis() {
   const [analysis, setAnalysis] = useState<SpendingAnalysis | null>(null);
   const [alerts, setAlerts] = useState<OverspendingAlert[]>([]);
@@ -44,6 +42,19 @@ export default function Analysis() {
     fetchAnalysis();
     fetchAlerts();
   }, [dateRange]);
+  
+  useEffect(() => {
+    // Listen for transaction updates
+    const handleTransactionChange = () => {
+      fetchAnalysis();
+      fetchAlerts();
+    };
+    window.addEventListener('transaction-updated', handleTransactionChange);
+    
+    return () => {
+      window.removeEventListener('transaction-updated', handleTransactionChange);
+    };
+  }, []);
 
   const fetchAnalysis = async () => {
     try {
