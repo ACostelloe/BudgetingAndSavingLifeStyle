@@ -3,6 +3,11 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+// Configure auto-updater
+autoUpdater.setAutoDownload(true);
+autoUpdater.setAutoInstallOnAppQuit(true);
+autoUpdater.checkForUpdatesAndNotify();
+
 let mainWindow;
 let serverProcess;
 
@@ -27,8 +32,12 @@ function createWindow() {
     mainWindow.show();
     
     // Check for updates on startup (only in production)
+    // Also check periodically (every 4 hours)
     if (!isDev) {
       autoUpdater.checkForUpdatesAndNotify();
+      setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+      }, 4 * 60 * 60 * 1000); // 4 hours
     }
   });
 

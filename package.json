@@ -13,6 +13,8 @@
     "build:server": "cd server && npm run build",
     "build:electron": "electron-builder",
     "dist": "npm run build && electron-builder",
+    "dist:publish": "npm run build && electron-builder --publish always",
+    "release": "npm version patch && npm run dist:publish && git push && git push --tags",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
     "postinstall": "electron-builder install-app-deps",
     "check:server": "curl http://localhost:5000/api/health || echo Server not running"
@@ -89,8 +91,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "your-username",
-      "repo": "budgeting-app"
+      "owner": "ACostelloe",
+      "repo": "BudgetingAndSavingLifeStyle"
     }
   }
 }
