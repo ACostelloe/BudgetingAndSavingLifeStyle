@@ -1,0 +1,29 @@
+# Electron Builder Configuration
+# This file provides additional configuration options
+
+appId: com.budgeting.app
+productName: Budget Life
+directories:
+  output: dist-electron
+files:
+  - electron/**/*
+  - server/dist/**/*
+  - client/dist/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+
